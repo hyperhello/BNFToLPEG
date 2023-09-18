@@ -11,7 +11,7 @@
 <h3>Simple example</h3>
 In this simple example, we denote rules like this: <b>&lt;Rule&gt;</b>, by enclosing their names in angle brackets. Everything after the name and the equals sign is considered the text of the rule itself except for the special <code>[]</code> (<b>optional</b>) and <code>|</code> (<b>choices</b>). Text parsing with a grammar begins with a <b>start rule</b>, in this case &lt;Sentence&gt;.
 
-In this simple example, we denote rules like this: <Rule>, by enclosing their names in angle brackets. Everything after the name and the equals sign is considered the text of the rule itself except for the special [] (optional) and | (choices). Text parsing with a grammar begins with a start rule, in this case <Sentence>.
+In this simple example, we denote rules like this: &lt;Rule&gt;, by enclosing their names in angle brackets. Everything after the name and the equals sign is considered the text of the rule itself except for the special [] (optional) and | (choices). Text parsing with a grammar begins with a start rule, in this case <Sentence>.
 
     <Sentence> = <Verb> the <Noun>.
     <Sentence> = <Person>, [would you] [please] <Verb> the <Noun>?
