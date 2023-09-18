@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>BNF To LPEG</title>
+        <script>
+            // workaround on WebKit where the XMP tag does not play nice with the clipboard. Abolish XMP tags and replace with <code><div>
+            window.onload = () =>
+            {
+                document.body.querySelectorAll('xmp').forEach((xmp)=>{
+                    xmp.outerHTML = '<code><div>' + xmp.innerText.split('<').join('&lt;').split('\n').join('<br>') + '</div></code>';
+                })
+            }
+            
+        </script>
+	</head>
+	<body>
+		
+		
+		
+<h2>Hypervariety BNFToLPEG</h2>
+
+<h3>What is it?</h3>
+
+<b>BNFToLPEG</b> is a compact library that will read in a description of a parsing expression grammar. A <b>grammar</b> defines a set of named <b>rules</b> and how they are combined. Given a grammar, you could <b>parse</b> text and diagram it automatically, link the result to other functions, or even convert the result into a similar grammar. <b>BNF</b> (Backus–Naur form) is a good choice for simple grammars because it is easy to read the <b>declarations</b> (rules, written out).
+
+<h3>Simple example</h3>
+In this simple example, we denote rules like this: <b>&lt;Rule&gt;</b>, by enclosing their names in angle brackets. Everything after the name and the equals sign is considered the text of the rule itself except for the special <code>[]</code> (<b>optional</b>) and <code>|</code> (<b>choices</b>). Text parsing with a grammar begins with a <b>start rule</b>, in this case &lt;Sentence&gt;.
+
+<xmp>
+	<Sentence> = <Verb> the <Noun>.
+	<Sentence> = <Person>, [would you] [please] <Verb> the <Noun>?
+		
+	<Verb> = look at | walk to | throw | eat | learn about
+	<Noun> = ball | dog | guitar | turkey sandwich
+	<Person> = you | Dad | Mr. President | Dog
+		
+</xmp>
+<p>
+Given this example, sort of a diagram of a very small part of the English language, we can examine a sentence to see if it fits the grammar. These sentences will fit:
+<xmp>
+	Look at the ball.
+	Eat the turkey sandwich.
+	Dad, please walk to the guitar?
+	Mr. President, would you please learn about the turkey sandwich?
+	Eat the guitar.
+	
+</xmp>
+<p>
+These sentences will not fit, because they use text that is not in the grammar, or they do not fit any of the declarations:
+<xmp>
+	Eat the chocolate.
+	Mr. President, dog guitar.
+	Dad, would you throw the you?
+	Eat the dad.
+	
+</xmp>
+<h3>How it works</h3>
+So how, exactly, is <code>Look at the dog.</code> compared to a &lt;Sentence&gt;? The technique is to essentially have two <b>pointers</b>, which is like using one finger of your hand. One hand points to where you are in the text, and one hand points to where you are in the rules. You can try it with your own hands! Do programmers really use their hands? Of course we do! Whatever works!
+<p>
+<table width=80% border=1 cellpadding=10><tr><td><code>Look at the dog.</code></td><td><code>&lt;Sentence&gt; = &lt;Verb&gt; the &lt;Noun&gt;.    <br>&lt;Verb&gt; = look at | walk to | throw | eat | learn about
+    <br>&lt;Noun&gt; = ball | dog | guitar | turkey sandwich
+</code></td></tr></table>
+<p>
+Start with your pointers at the beginning of <code>Look at the dog.</code> and the beginning of &lt;Sentence&gt;. At all times, the text is compared to the rule. At the beginning of &lt;Sentence&gt;, we have &lt;Verb&gt;. So the rule pointer makes a side trip to &lt;Verb&gt;, finds that <code>Look at</code> is a correct match, and scans over it. Now that &lt;Verb&gt; is done, the rule pointer returns to the next part of &lt;Sentence&gt; with the remaining text <code>the dog.</code>
+<p>
+The second part of &lt;Sentence&gt; is <code>the</code>, making a match, leaving the text <code>dog.</code> and the rule pointer takes another side trip to parse &lt;Noun&gt;. The first test, <code>ball</code>, is not a match, so the parser moves over it to the next choice, <code>dog</code>, which does work, and &lt;Noun&gt; is complete. Then the last token in &lt;Sentence&gt; is the final period. The start rule was parsed successfully, so the parse was successful.
+
+<h3>Another example</h3>
+
+Parsing text in a grammar is a very mechanical process, but describing a grammar needs a human being (for now). Since a computer does not understand anything, the grammar needs to be designed to be appropriate and expressive for the situation it's to be used in. Here's another grammar:
+<xmp>
+	<PhoneNumber> = [ [ 1 [-] ] [(] [<D><D><D>] [)] ] <D><D><D> [-] <D><D><D><D>
+	<D> = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+
+</xmp>
+<p>
+The common way of formatting the digits of United States telephone numbers, such as <code>867-5309</code>, or <code>415-5551212</code>, or <code>1 (123)-123-4242</code>, fits this grammar. However, it's difficult to read on a single line, which helps conceal a tiny error. We could break it out into a slightly friendlier description:
+<xmp>
+    <PhoneNumber> = [<AreaCode>] <SevenDigits>
+    <AreaCode> = [<Prefix>] (<D><D><D>)
+    <AreaCode> = [<Prefix>] <D><D><D>
+    <Prefix> = 1 [-]
+    <SevenDigits> = <D><D><D> [-] <D><D><D><D>
+    <D> = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+
+</xmp>
+<p>
+What we see now is more readable. A &lt;PhoneNumber&gt; optionally starts with an &lt;AreaCode&gt; before the seven digits. The seven digits may be separated in the right place with an optional hyphen. The &lt;AreaCode&gt; has an optional &lt;Prefix&gt;, which is 1 and an optional hyphen. The optional nature of some features are interesting. You can see that the seven digits can be broken up by a hyphen, but it has to be in the right place: 86753-09 is not a successful parse. The 1- prefix is optional, and you can have just the 1 (1800-555-1222), but you can't have just the hyphen (-800-555-1222), because the hyphen alone would not succesfully parse the prefix, and although the prefix is optional, the area code has no rule to accept the hyphen.
+<p>
+In this more readable version, we see there are two <b>versions</b> of &lt;AreaCode&gt; one after the other. The first lets you parenthesize the area code, and the second lets you leave off the parentheses. Writing alternate versions of the same rule is similar to the choice operator <code>|</code>. The parser will try the versions in the order they're provided, and always accepts the first one that works.
+<p>
+With BNF, the grammar has some room for interpretation in the case that <i>two versions could both fit</i> the next piece of text. In <i>context-free grammar</i> (CFG), this is allowed. BNFToLPEG uses <b>parsing expression grammar</b> (PEG), which resolves this ambiguity. When using the choice rule <code>|</code>, you're expressing a preference. The earlier rule in the list is tried first. If it parses correctly, that's the one that the parse uses. This simple rule – first parse wins – simplifies everything.
+<p>
+<h3>Brackets</h3>
+
+Enclosing rules or pieces of text in <code>[]</code> makes them optional, which is another kind of choice: this or nothing. The parser tries to parse the contents first. If it does not succeed, it backtracks and tries the second choice: nothing. Nothing always works and succeeds, so <code>[]</code> always succeeds by itself, even if what is inside it doesn't. Note that <code>[]</code> won't accept <i>some</i> of an incompletely successful parse; it's all or nothing. It's also called the <i>one-or-zero operator</i>.
+<p>
+There are variations on <code>[]</code> that aren't always necessary to use, but can still make your grammar a little more tidy. The first is putting an asterisk after the end bracket. <code>[]*</code> is more than one-or-zero; sometimes called the <i>star</i> or <i>repetition</i>, it matches as many as it can get. If there are ten repetitions, it matches all of them. If at any time when parsing it, the next attempt fails, the whole operator doesn't fail. It returns as many as it could get, and leaves the next one, and will also succeed if there were zero matches.
+<p>
+Instead of square brackets, you can substitute curly brackets before the asterisk. <code>{}*</code> accepts multiple matches, but with a minimum of one. Zero matches won't succeed. Of course, if you wanted to accept zero matches, you could put <i>them</i> in optional brackets, but then it would be the same as using the optional brackets alone: <code>[ {}* ]</code> and <code>[]*</code> are actually identical operations.
+<p>
+Curly braces without the star is also valid. <code>{}</code> accepts exactly one of what's inside it, and needs the inside to succeed for the curly braces to succeed. Okay, you might ask, how is that better than just writing the inside without the curly braces? Good point – the curly braces and no braces at all are identical operations! But, it can make the grammar clearer in one very specific case: when you want to put choice operators inside a part of the rule, not the whole rule.
+<xmp>
+    <Sentence> = Hey, let's you and me { eat | drink | go dancing } after work.
+        
+</xmp>
+As you can see, that wouldn't make much sense without the curly braces:
+<xmp>
+    <Sentence> = Hey, let's you and me eat | drink | go dancing after work.
+        
+</xmp>
+Without the curly braces, that rule would match the three possibilities: "<code>Hey, let's you and me eat</code>", "<code>drink</code>", or "<code>go dancing after work</code>", and while the computer would have no reason to doubt you, we can see that's not the intended rule.
+
+
+<h3>About the empty parse</h3>
+<xmp>
+    <EmptyRule> = []
+
+</xmp>
+The <b>empty parse</b> is when a rule allows no text to be consumed. You can express the empty parse with <code>[]</code>, a pair of brackets with nothing inside. It will always succeed. There was just nothing to do. In the above sample, &lt;EmptyRule&gt; always succeeds, and always consumes no text.
+<p>
+There are some fine points to know about the empty parse and why it is important. First of all, the empty parse consumes none of the text, so what happens when you use <code>[]*</code>? Would it successfully consume no text, and then repeat successfully to consume no text, and then continue until the universe ends? Nope! Brackets will not accept an empty parse. <code>[]*</code> has nothing inside. But <code>[]*</code> will succeed because success is optional.
+<p>
+<xmp>
+    <RepeatedEmptyRule> = [ ]*
+    <UsuallyEmptyRule> = [ Abraham Lincoln had a goldfish ]
+        
+    <NeverSuccessfulRule> = { }
+
+</xmp>
+In the above sample, &lt;RepeatedEmptyRule&gt; always succeeds with zero matches, and always consumes no text. &lt;UsuallyEmptyRule&gt; always succeeds as well, and will consume no text except <code>Abraham Lincoln had a goldfish</code>. &lt;NeverSuccessfulRule&gt; cannot ever succeed, because brackets require their inner rule to consume text.
+
+<h3>Lookahead and negative lookahead</h3>
+The <b>lookahead</b> operation is one more variation on bracket syntax. <code>{}@</code> only succeeds if the inner rule succeeds like <code>{}</code>, but it won't consume any of the text. The pointer will still be at the same place afterward. This gives your grammar a chance to confirm something in two different ways. You can also use <b>negative lookahead</b>, succeeding only if the text does <i>not</i> match the inner rule, with <code>[]@</code>. Negative lookahead succeeds when the parse fails, and fails if the parse succeeds.
+<xmp>
+    <LookaheadRule> = { Sir, }@ <Sentence>
+        
+    <NegativeLookaheadRule> = [ But, ]@ <Sentence>
+                
+</xmp>
+In the above, &lt;LookaheadRule&gt; accepts a &lt;Sentence&gt;, but only if it begins with <code>Sir,</code> (in case you insist on being referred to as Sir). &lt;NegativeLookaheadRule&gt; accepts a &lt;Sentence&gt;, but only if it does <i>not</i> begins with <code>But,</code> (so if you don't accept excuses, at least ones starting with But, they will fail to parse).
+<xmp>
+    <DoubleNegativeLookaheadRule> = [ [ <InnerRule> ]@ ]@
+                
+</xmp>
+Can you see what &lt;DoubleNegativeLookaheadRule&gt; does? If &lt;InnerRule&gt; is successful, the inner <code>[]@</code> fails, but since it does fail, the outer <code>[]@</code> succeeds. If &lt;InnerRule&gt; fails, the inner <code>[]@</code> succeeds, and the outer <code>[]@</code> fails. Nesting <code>[]@</code> twice is equivalent to <code>{}@</code>.
+
+</xmp>
+
+
+<h3>Output from the rule</h3>
+
+Beyond whether a parse succeeds or fails, there is the question of what choices were made in it. Was Dad supposed to eat the turkey sandwich, or the dog? The parse will return the selected choices in a JavaScript object, so a scripter can easily drill in to find exactly which way the parse went. The parser can also find the longest attempt, which is the one that consumed the most text, even if it failed.
+<p>
+In addition to that, you have a more casual option. You can tell the parser what text you want the rule to return with the <code>=></code> operator. This is put after the rule on the same line or on the next line. After <code>=></code>, write the rule output, which can include the rules used by that rule. The rules used in the output will be replaced by their parsed text or by any output set for them.
+<xmp>
+    <Sentence> = <Verb> the <Noun>.
+        => The <Noun> is supposed to have me <Verb> it now.
+        
+    <Verb> = look at | walk to | throw | eat | learn about
+    <Noun> = ball | dog | guitar | turkey sandwich
+
+</xmp>
+The above rule &lt;Sentence&gt; if given the successful parse <code>Walk to the Guitar.</code> will produce the output <code>The Guitar is supposed to have me Walk to it now.</code>
+
+
+<h3>Recursion</h3>
+
+Sometimes it's convenient for a grammar to be <i>recursive</i>. This is when a rule uses itself directly (direct recursion), or when it uses a rule that uses it (indirect recursion). The most common example is to parse simple arithmetic, like <code>10 + 20 - 30 + 40</code>. Look at this example, without no recursion:
+<xmp>
+    <Sum> = <Number> [ <PlusOrMinus> <Number> ]*
+        
+    <Number> = { 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 }*
+    <PlusOrMinus> = + | -
+
+</xmp>
+The shortcoming with this is that, although you'll get a success if the rule parses, you don't know how many terms are in the expression and so the &lt;Sum&gt; rule isn't helpful writing an output.  The insight here is that if you write the rule using the rule, by being recursive, you can have an output. See the next example, which has recursion. Each version of &lt;Sum&gt; grabs a number, but the first two versions allow the number to be followed by another operation or number.
+<xmp>
+    <Sum> = <Number> + <Sum> => addition( <Number> , <Sum> )
+          | <Number> - <Sum> => subtraction( <Number> , <Sum> )
+    <Sum> = <Number>
+
+</xmp>
+
+When given a single number <code>10</code>, the output will be just <code>10</code>.
+<p>
+When given <code>10 + 20</code>, the rule will recurse (call itself) once after parsing <code>+</code>. The second inner call will produce <code>20</code> and then the whole output will be <code>addition( 10, 20 )</code>.
+<p>
+<code>10 + 20 - 33 + 44</code> will recurse three times, producing the nested output <code>addition( 10, subtraction( 20, addition ( 33, 44 ) ) )</code>. The parser produced exactly what we asked it to, but there's one unfortunate problem: this grammar doesn't get the right answer! Sums are evaluated from the left to the right: we calculate ((10 + 20) - 33) + 44. But this parser drilled in from the right: 10 + (20 - (33 + 44)).
+
+
+<h3>Left recursion</h3>
+
+We need a rule that looks more like this:
+<xmp>
+    <Sum> = <Sum> + <Number> => addition( <Sum> , <Number> )
+          | <Sum> - <Number> => subtraction( <Sum> , <Number> )
+          | <Number>
+
+</xmp>
+<code>Now 10 + 20 - 33 + 44</code> will correctly recurse from the left side, producing the nested output <code>addition( subtraction( addition( 10, 20 ), 33 ), 44)</code>.
+<p>Parsing expression grammars have traditionally had caveats about left recursion. Using the two-pointer system mentioned earlier, the problem with the previous rule that the first step of parsing &lt;Sum&gt; is to parse &lt;Sum&gt;, of which the first step is to parse &lt;Sum&gt;; the attempt would never end. BNFToLPEG is equipped to handle the situation. When it detects left recursion (defined as: attempting to parse a rule at the same location in the text that rule is already being parsed) it performs a two-step process. First, the original attempt to parse the rule is allowed to continue with any attempts to left-recurse blocked. On the condition this succeeds in producing a non-left-recursive parse (the first <code>10</code>), it uses it as a <i>seed</i> for the next steps.
+<p>
+The next steps are the same repeated routine. The left-recursive rule is parsed again, but when it encounters its left recursion, the pre-parsed seed is considered to be the inner result. The resulting parse at each point is required to succeed, and to consume more text doing so, to become the new pre-parsed seed for the next round. At the end of this process, the final attempt either having failed or having produced a smaller parse (often the original seed), the last successful attempt is used as the final result.
+<p>
+Let's try to make the arithmetic parser even better by adding multiplication and division:
+<xmp>
+    <Sum> = <Sum> + <Number> => addition( <Sum> , <Number> )
+          | <Sum> - <Number> => subtraction( <Sum> , <Number> )
+          | <Sum> * <Number> => multiplication( <Sum> , <Number> )
+          | <Sum> / <Number> => division( <Sum> , <Number> )
+          | <Number>
+
+</xmp>
+Again, this will correctly parse, but it isn't quite what we want. The input <code>1 * 2 + 3</code> will produce <code>addition( multiplication ( 1, 2 ), 3 )</code>. But the input <code>1 + 2 * 3</code> will produce <code>multiplication( addition ( 1, 2 ), 3 )</code>, because the parser is just proceeding left to right, and that violates the rule that the multiplication must go first. How about reordering the rules, so multiplication and division gets first crack?
+<xmp>
+    <Sum> = <Sum> * <Number> => multiplication( <Sum> , <Number> )
+          | <Sum> / <Number> => division( <Sum> , <Number> )
+          | <Sum> + <Number> => addition( <Sum> , <Number> )
+          | <Sum> - <Number> => subtraction( <Sum> , <Number> )
+          | <Number>
+
+</xmp>
+This actually makes no difference to the parse, because although earlier versions of a rule have preference, there isn't any ambiguity between <code>*</code> and <code>+</code>. And if reordering the rules like this could control what order the operators parsed in, then addition would always come before subtraction and you don't want that either because <code>1 - 2 + 3</code> would turn into <code>subtraction( 1, addition( 2, 3 ) )</code>.
+<p>
+How about putting &lt;Sum&gt; on the right side, instead of &lt;Number&gt;?
+<xmp>
+    <Sum> = <Sum> + <Sum> => addition( <Sum> , <Sum> )
+          | <Sum> - <Sum> => subtraction( <Sum> , <Sum> )
+          | <Sum> * <Sum> => multiplication( <Sum> , <Sum> )
+          | <Sum> / <Sum> => division( <Sum> , <Sum> )
+          | <Number>
+
+</xmp>
+That's almost it. Now we can even define operator precedence.
+<xmp>
+    <Sum> = <Sum> + <Sum> => addition( <Sum> , <Sum> )
+          | <Sum> - <Sum> => subtraction( <Sum> , <Sum> )
+              
+    <Sum> = <Sum> * <Sum> => multiplication( <Sum> , <Sum> )
+          | <Sum> / <Sum> => division( <Sum> , <Sum> )
+    
+    <Sum> = <Number>
+
+</xmp>
+Now BNFToLPEG will parse <code>1 + 2 * 3</code> as <code>addition( 1, multiplication( 2, 3 ) )</code> and parse <code>1 * 2 + 3</code> as <code>addition( multiplication( 1, 2 ), 3 )</code>. The left side &lt;Sum&gt; takes the first version available to it, but then on the right side, &lt;Sum&gt; has to take a later version. Then the left side, which contains the right side parse so far, is enclosing it with its own right side again. And again, until the &lt;Sum&gt; is finished parsing.
+
+
+<h3>Editable example</h3>
+<p>
+This grammar users operators and precedences to parse input. The browser's table is enabled to be editable. Typing errors cannot stop a parser so you are merely reminded of any issues below the table.
+<p><table border=1 cellpadding=10>
+    <tr><td rowspan=99999 width=50%>
+        <code><div id=editable_grammar contenteditable=true>
+<xmp>
+
+<Sum> = <Sum> + <Sum> => addition( <Sum> , <Sum> )
+      | <Sum> - <Sum> => subtraction( <Sum> , <Sum> )
+
+<Sum> = <Sum> * <Sum> => multiplication( <Sum> , <Sum> )
+    | <Sum> / <Sum> => division( <Sum> , <Sum> )
+
+<Sum> = <Exponent>
+<Sum> = <Factor>
+
+<Factor> = (<Sum>) | <Number>
+
+<Exponent> = <Factor>^<Exponent> => pow(<Factor>,<Exponent>)
+<Exponent> = <Factor>^<Number> => pow(<Factor>,<Factor>)
+
+<Number> = { 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 }*
+
+<Sum> = Or type this => wow
+
+</xmp>
+</div></code>
+    </td>
+        
+        <td><code><div id=editable_input contenteditable=true>
+            1 * (2+2)^3^4 + 5 * (6/7+8)
+        </div></code>
+        </td>
+    </tr>
+    <tr><td valign=top> <code><div id=editable_output>
+        (addition( multiplication( 1 , pow((addition( 2 , 2 )),pow(3,3)) ) , multiplication( 5 , (addition( division( 6 , 7 ) , 8 )) ) ))
+    </div></code></td>
+        </tr>
+    
+</table>
+
+<code><div id=editable_error></div></code>
+
+<style>
+    #editable_grammar, #editable_input, #editable_output, #editable_error {
+        color: #222;
+        font-family: monospace;
+    }
+    #editable_error
+    {
+        min-height: 3em;
+    }
+</style>
+
+<script src=BNFToLPEG.js></script>
+<script>
+
+    var grammar, input, parser, result;
+
+    function reparse_editable()
+    {
+        grammar = editable_grammar.innerText;
+        parser = BNFToLPEGParser(grammar);
+        console.log(parser);
+        input = editable_input.innerText;
+        result = parser.parse(input);
+        editable_output.innerText = (result.success && result.output) || '';
+        editable_error.innerText = (parser.errors && parser.errors.join("\n")) || '';
+        console.log(input, result);
+    }
+    
+    editable_grammar.innerText = editable_grammar.innerText;
+    editable_input.innerText = editable_input.innerText;
+
+    reparse_editable();
+    editable_grammar.oninput = reparse_editable;
+    editable_input.oninput = reparse_editable;
+    
+</script>
+
+<h3>How to use BNFToLPEG</h3>
+
+The BNFToLPEG library has almost no options. First, download or link the JavaScript at <a href=BNFToLPEG.js>BNFToLPEG.js</a>
+<p>
+<code>BNFToLPEGParser(grammar).parse(input).output</code> will construct a parser, parse input, and produce output. Using the <code>success</code> parameter instead of <code>output</code> will access a object containing <code>{ index, endIndex, subrules[], rule, version }</code>, or null if the input didn't fit the grammar. See the text of the script for documentation.
+<p>
+<p>
+Feel free to use the code in personal projects (noncommercial). Feel free to use the techniques in this document wherever you can.
+<p>
+<b>BNFToLPEG : (c) 2023 Hypervariety Custom Programming</b>
+
+
+</body></html>
