@@ -108,7 +108,7 @@ function BNFToLPEGParser(grammar, regex_rules)
 				
 				token = get_grammar(regex_close);
 				if ( !token || (pair.bracket[0]=='[' && token[0] != ']')|| (pair.bracket[0]=='{' && token[0] != '}') )
-					console.log("expected ending bracket for " + pair.bracket, grammar.substr(gline).split('\n')[0]);
+					parser.errors.push("expected ending bracket for " + pair.bracket, grammar.substr(gline).split('\n')[0]);
 				else if (token[1]=='*' || token[1]=='@')
 					pair.feature = token[1];
 			}
