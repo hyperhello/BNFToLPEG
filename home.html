@@ -23,7 +23,7 @@
 
 <h3>What is it?</h3>
 
-<b>BNFToLPEG</b> is a compact library that will read in a description of a parsing expression grammar. A <b>grammar</b> defines a set of named <b>rules</b> and how they are combined. Given a grammar, you could <b>parse</b> text and diagram it automatically, link the result to other functions, or even convert the result into a similar grammar. <b>BNF</b> (Backus–Naur form) is a good choice for simple grammars because it is easy to read the <b>declarations</b> (rules, written out).
+<b>BNFToLPEG</b> is a compact JavaScript library that will read in a description of a parsing expression grammar. A <b>grammar</b> defines a set of named <b>rules</b> and how they are combined. Given a grammar, you could <b>parse</b> text and diagram it automatically, link the result to other functions, or even convert the result into a similar grammar. <b>BNF</b> (Backus–Naur form) is a good choice for simple grammars because it is easy to read the <b>declarations</b> (rules, written out).
 
 <h3>Simple example</h3>
 In this simple example, we denote rules like this: <b>&lt;Rule&gt;</b>, by enclosing their names in angle brackets. Everything after the name and the equals sign is considered the text of the rule itself except for the special <code>[]</code> (<b>optional</b>) and <code>|</code> (<b>choices</b>). Text parsing with a grammar begins with a <b>start rule</b>, in this case &lt;Sentence&gt;.
@@ -268,7 +268,7 @@ This grammar users operators and precedences to parse input. The browser's table
 <Factor> = (<Sum>) | <Number>
 
 <Exponent> = <Factor>^<Exponent> => pow(<Factor>,<Exponent>)
-<Exponent> = <Factor>^<Number> => pow(<Factor>,<Factor>)
+<Exponent> = <Factor>^<Number> => pow(<Factor>,<Number>)
 
 <Number> = { 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 }*
 
