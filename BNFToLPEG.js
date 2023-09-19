@@ -13,12 +13,13 @@
         <Rule> = you can have multiple versions of any rule
         <Rule> = [ you can enclose optional rules in square brackets ], and you can [ optionally parse multiple times ]*
         <Rule> = { curly brace rules are not optional } and you can { repeat at least once }*
+        <Rule> = { positive lookahead }@ and [ negative lookahead ]@
         <Rule> = choices are | separated | with | the | pipe symbol.
         <Rule> = <Rule> is very smart about including itself in itself. Again: <Rule>
         <Rule> = <number> + <number>
         <Rule> = <something> and <somethingElse> => after the arrow symbol, you can change output: <somethingElse> <something>
  
- Besides <rule>, [], []*, []&, {}, {}*, {}&, |, and the first =>, all symbols are considered part of the grammar.
+ Besides <rule>, [], []*, []@, {}, {}*, {}@, |, and the first =>, all symbols are considered part of the grammar.
 
  With a parser, use parser.parse(input) to produce an instance of a BNFToLPEGResult object. This has the members
 
