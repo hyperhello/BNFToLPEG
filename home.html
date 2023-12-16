@@ -2,8 +2,11 @@
 <html>
 	<head>
 		<meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>BNF To LPEG</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>body { margin: 1em; } </style>
+
+    <title>BNF To LPEG</title>
         <script>
             // workaround on WebKit where the XMP tag does not play nice with the clipboard. Abolish XMP tags and replace with <code><div>
             window.onload = () =>
@@ -20,6 +23,8 @@
 		
 		
 <h2>Hypervariety BNFToLPEG</h2>
+
+To use, you can download or link at <a href=BNFToLPEG.js>BNFToLPEG.js</a>.
 
 <h3>What is it?</h3>
 
@@ -172,7 +177,7 @@ Sometimes it's convenient for a grammar to be <i>recursive</i>. This is when a r
 <xmp>
     <Sum> = <Number> [ <PlusOrMinus> <Number> ]*
         
-    <Number> = { 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 }*
+    <Number> = { <Digit> }*
     <PlusOrMinus> = + | -
 
 </xmp>
@@ -247,50 +252,72 @@ That's almost it. Now we can even define operator precedence.
 </xmp>
 Now BNFToLPEG will parse <code>1 + 2 * 3</code> as <code>addition( 1, multiplication( 2, 3 ) )</code> and parse <code>1 * 2 + 3</code> as <code>addition( multiplication( 1, 2 ), 3 )</code>. The left side &lt;Sum&gt; takes the first version available to it, but then on the right side, &lt;Sum&gt; has to take a later version. Then the left side, which contains the right side parse so far, is enclosing it with its own right side again. And again, until the &lt;Sum&gt; is finished parsing.
 
+<h3>Right recursion</h3>
 
-<h3>Editable example</h3>
-<p>
-This grammar users operators and precedences to parse input. The browser's table is enabled to be editable. Typing errors cannot stop a parser so you are merely reminded of any issues below the table.
-<p><table border=1 cellpadding=10>
-    <tr><td rowspan=99999 width=50%>
-        <code><div id=editable_grammar contenteditable=true>
+Exponentiation recurses right to left: 4^5^6^7 is 4^(5^(6^7)). This is probably because, if you're really raising them left to right, it's just multiplying the exponents: ((1^2)^3)^4 equals 1^(2*3*4) and you would have just typed that if it was what you had meant, so right recursion is assumed. This one-line rule will collect the exponents from the right side:
 <xmp>
+    <Exponent> = <Number>^{ <Exponent> | <Number> }
+        
+</xmp>
+If we want to rewrite the output in the two different forms, we do have to break the choice into another line.
+<xmp>
+    <Exponent> = <Number>^<Power> => power(<Number>,<Power>)
+        
+    <Power> = <Exponent> | <Number>
+        
+</xmp>
+Another right-recursive operator is negation, the minus sign before a value, which means to multiply by -1. You could use extra minus signs in a row to negate twice or thrice, which should read as -(-(-(value))) of course.
+<xmp>
+    <Negation> = - <Negated> => multiplication( -1, <Negated> )
+    
+    <Negated> = <Negation> | <Number>
+        
+</xmp>
 
-<Sum> = <Sum> + <Sum> => addition( <Sum> , <Sum> )
-      | <Sum> - <Sum> => subtraction( <Sum> , <Sum> )
+<h3>Editable grammar with &lt;Expr&gt; and &lt;Factor&gt;</h3>
+<p>
+Putting the arithmetic parsing techniques so far all together, this grammar uses common names in arithmetic: Expr, short for expression (a series of values and operators) and Factor (one number, or an expression in parenthesis). Expressions are parsed and rewritten respecting operator precedence.
+<p>
+The grammar is editable! You can just select with the mouse and keyboard. There is no way to hurt the page by typing; errors can stop a parser but they cannot freeze or crash the page no matter what you entered. One fun trick is to add more kinds of factors to the end of the list.
+</p>
+<code></code>
 
-<Sum> = <Sum> * <Sum> => multiplication( <Sum> , <Sum> )
-    | <Sum> / <Sum> => division( <Sum> , <Sum> )
+<table border=1 cellpadding=10>
+    <tr><td rowspan=2 width=50%>
+        <code><div id=editable_grammar contenteditable=true style="outline: none;">
+<xmp>
+<Expr> = <Expr> + <Expr> => add( <Expr> , <Expr> )
+       | <Expr> - <Expr> => sub( <Expr> , <Expr> )
+          
+<Expr> = <Expr> * <Expr> => mult( <Expr> , <Expr> )
+       | <Expr> / <Expr> => div( <Expr> , <Expr> )
+    
+<Expr> = <Exponent>
+<Exponent> = <Factor> ^ <Exponent> => pow( <Factor>, <Exponent> )
+<Exponent> = <Factor> ^ <Factor> => pow( <Factor>, <Factor> )
 
-<Sum> = <Exponent>
-<Sum> = <Factor>
+<Expr> = <Factor>
 
-<Factor> = (<Sum>) | <Number>
-
-<Exponent> = <Factor>^<Exponent> => pow(<Factor>,<Exponent>)
-<Exponent> = <Factor>^<Number> => pow(<Factor>,<Number>)
-
-<Number> = { 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 }*
-
-<Sum> = Or type this => wow
+<Factor> = (<Expr>)
+<Factor> = - <Factor> => mult( -1, <Factor> )
+<Factor> = { <Digit> }*
 
 </xmp>
 </div></code>
     </td>
         
-        <td><code><div id=editable_input contenteditable=true>
-            1 * (2+2)^3^4 + 5 * (6/7+8)
+        <td><code><div id=editable_input contenteditable=true  style="margin: -4px; padding: 4px;">
+            12 * (3+1)^4^1 + 5 * -(6/7+8)
         </div></code>
         </td>
     </tr>
-    <tr><td valign=top> <code><div id=editable_output>
-        (addition( multiplication( 1 , pow((addition( 2 , 2 )),pow(3,3)) ) , multiplication( 5 , (addition( division( 6 , 7 ) , 8 )) ) ))
+    <tr><td valign=top> <code><div id=editable_error></div><div id=editable_output>
+        ...
     </div></code></td>
         </tr>
     
 </table>
 
-<code><div id=editable_error></div></code>
 
 <style>
     #editable_grammar, #editable_input, #editable_output, #editable_error {
@@ -299,7 +326,8 @@ This grammar users operators and precedences to parse input. The browser's table
     }
     #editable_error
     {
-        min-height: 3em;
+        color: red;
+        font-weight: bold;
     }
 </style>
 
@@ -311,11 +339,11 @@ This grammar users operators and precedences to parse input. The browser's table
     function reparse_editable()
     {
         grammar = editable_grammar.innerText;
-        parser = BNFToLPEGParser(grammar);
+        parser = BNFToLPEGParser(grammar, { digit: /[\d]/y });
         console.log(parser);
         input = editable_input.innerText;
         result = parser.parse(input);
-        editable_output.innerText = (result.success && result.output) || '';
+        editable_output.innerText = (!parser.errors.length && result.success && result.output) || '';
         editable_error.innerText = (parser.errors && parser.errors.join("\n")) || '';
         console.log(input, result);
     }
@@ -331,12 +359,12 @@ This grammar users operators and precedences to parse input. The browser's table
 
 <h3>How to use BNFToLPEG</h3>
 
-The BNFToLPEG library has almost no options. First, download or link the JavaScript at <a href=BNFToLPEG.js>BNFToLPEG.js</a>
+The BNFToLPEG library has no options. First, download or link the JavaScript at <a href=BNFToLPEG.js>BNFToLPEG.js</a>
 <p>
 <code>BNFToLPEGParser(grammar).parse(input).output</code> will construct a parser, parse input, and produce output. Using the <code>success</code> parameter instead of <code>output</code> will access a object containing <code>{ index, endIndex, subrules[], rule, version }</code>, or null if the input didn't fit the grammar. See the text of the script for documentation.
 <p>
 <p>
-Feel free to use the code in personal projects (noncommercial). Feel free to use the techniques in this document wherever you can.
+The techniques in this document are just ideas and you are always free to use them wherever you can. You're also invited to use the code in personal noncommercial projects and change or improve it as necessary.
 <p>
 <b>BNFToLPEG : (c) 2023 Hypervariety Custom Programming</b>
 
